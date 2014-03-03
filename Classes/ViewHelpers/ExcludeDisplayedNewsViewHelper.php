@@ -34,7 +34,34 @@
  */
 class Tx_News_ViewHelpers_ExcludeDisplayedNewsViewHelper extends Tx_Fluid_Core_ViewHelper_AbstractViewHelper {
 
-	/**
+    /**
+     * Die IDs der übersetzen News holen
+     *
+     *  @return	array	News ID
+     */
+    public static function getTranslatedNews($uid, $sprache) {
+
+        # DBG
+        #$GLOBALS['TYPO3_DB']->store_lastBuiltQuery = 1;
+        #$GLOBALS['TYPO3_DB']->debugOutput = true;
+        #$GLOBALS['TYPO3_DB']->debug_lastBuiltQuery;
+        // echo $GLOBALS['TYPO3_DB']->debug_lastBuiltQuery;
+
+        $res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('`uid`', '`tx_news_domain_model_news`',
+            '`l10n_parent`=' . $uid . ' AND `sys_language_uid`='. $sprache . $GLOBALS['TSFE']->sys_page->enableFields('tx_news_domain_model_news')
+        );
+
+        $rootList = array();
+        if ($GLOBALS['TYPO3_DB']->sql_num_rows($res)) {
+            while($row = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)){
+                $rootList[] = array('uid' => $row['uid']);
+                // if more then one, maybe error handling
+            }
+        }
+        return $rootList[0]['uid'];
+    }
+
+    /**
 	 * Add the news uid to a global variable to be able to exclude it later
 	 *
 	 * @param Tx_News_Domain_Model_News $newsItem current news item
@@ -43,10 +70,15 @@ class Tx_News_ViewHelpers_ExcludeDisplayedNewsViewHelper extends Tx_Fluid_Core_V
 	public function render(Tx_News_Domain_Model_News $newsItem) {
 		$uid = $newsItem->getUid();
 
-		if (empty($GLOBALS['EXT']['news']['alreadyDisplayed'])) {
-			$GLOBALS['EXT']['news']['alreadyDisplayed'] = array();
-		}
+        if (empty($GLOBALS['EXT']['news']['alreadyDisplayed'])) {
+            $GLOBALS['EXT']['news']['alreadyDisplayed'] = array();
+        }
 
-		$GLOBALS['EXT']['news']['alreadyDisplayed'][$uid] = $uid;
+        // wenn Übersetzungsdatensatz, dann muss auch die Übersetzungsdatensatz-ID geschrieben werden
+        if ($newsItem->getSysLanguageUid() !== 0) {
+            $GLOBALS['EXT']['news']['alreadyDisplayed'][$uid] = self::getTranslatedNews($newsItem->getL10nParent(), $newsItem->getSysLanguageUid());
+        } else {
+    		$GLOBALS['EXT']['news']['alreadyDisplayed'][$uid] = $uid;
+        }
 	}
 }
